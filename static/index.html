@@ -14,7 +14,10 @@
 					<td>Rate:</td>
 					<td>
 						<select id="sampleRate">
+							<option value="3">3</option>
+							<option value="4">4</option>
 							<option value="5">5</option>
+							<option value="6">6</option>
 							<option value="10">10</option>
 							<option value="20">20</option>
 							<option value="30">30</option>
@@ -24,13 +27,17 @@
 						</select>
 					</td>
 					<td>MS/s</td>
-				</tr>
+				<tr>
 				<tr><td>Start:</td><td><input type="text" id="startFreq"></td><td>MHz</td></tr>
 				<tr><td>End:</td><td><input type="text" id="endFreq"></td><td>MHz</td></tr>
 				<tr><td>Step:</td><td><input type="text" id="numSteps"></td><td></td></tr>
+				<tr><td>RXgain:</td><td><input type="text" id="rxGain"></td><td></td></tr>
+		
+				<tr>
+					<tr><td>TXgain:</td><td><input type="text" id="txGain"></td><td>dB</td></tr>
+				</tr>
 			</table>
-			<input type="button" id="runBtn" onclick="btnClick(this)" value="Run"/>
-
+			<input type="button" id="runBtn" onclick="btnClick(this)" value="Run"/>			
 			<p>Cursor</p>
 			<table id="cursorSettings">
 				<tr>
