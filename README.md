@@ -6,7 +6,7 @@ Sweep time is not optimal and can be improved : approx. 1 hop/s
 Youtube : https://www.youtube.com/watch?v=yh-9a1fkgFA
 
 Dependencies
-- pow tool : https://github.com/LamaBleu/plutoscripts/tree/master/pluto_power
+- pow tool : https://github.com/LamaBleu/plutoscripts/tree/master/pluto_power  
            : you will need to compile pow tool.
 - numpy (pip)
 - flask (pip)
