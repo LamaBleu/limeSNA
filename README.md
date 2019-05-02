@@ -1,15 +1,13 @@
-# limeSNA
-This is a Scalar Network Analyzer program for the LimeSDR mini.
-The python code is based on the pyLMS7002Soapy SNA example. I optimized the original code to improve the speed and added a html/javascript based GUI to make it easier to use.
-For a 400-500MHz sweep with 200 data points(10 point/5MHz), the sweep time is about 17sec. The slowest part of the code currently is the tx/rx tuning(sdr.txRfFreq = xy).
+# limeSNA ported to ADALM-PLUTO
+This is a Scalar Network Analyzer program initialy written for the LimeSDR mini by github user nepeee (https://github.com/nepeee/limeSNA).  
+I replaced the SoapySDR layer by pow tool, and added Pluto TXgain and RXgain parameters to the webpage.  
+Sweep time is not optimal and can be improved : approx. 1 hop/s 
 
-#### Measuring a diy filter (17sec sweep)
-![Demo image](https://github.com/nepeee/limeSNA/blob/master/demo.png)
-#### Measuring a dual band monopole antenna (73sec sweep)
-![Demo image2](https://github.com/nepeee/limeSNA/blob/master/dualMonoAnt.png)
+Youtube : https://www.youtube.com/watch?v=yh-9a1fkgFA
 
 Dependencies
-- pyLMS7002Soapy Python package: https://github.com/myriadrf/pyLMS7002Soapy
+- pow tool : https://github.com/LamaBleu/plutoscripts/tree/master/pluto_power
+           : you will need to compile pow tool.
 - numpy (pip)
 - flask (pip)
 - flask_socketio (pip)
@@ -24,3 +22,4 @@ Install all the dependencies and run the code from a terminal with the following
 python sna.py
 
 After the radio is ready to use, the program starts a new web browser with the UI. Press the run button to start the frequeny sweep. For relative("calibrated") measurements wait a full sweep and then press the "Set relative" button.
+
