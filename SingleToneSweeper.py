@@ -1,26 +1,24 @@
 from __future__ import print_function
+import os
 import math
+import time
 import numpy as np
-from pyLMS7002Soapy import *
+from socket import *
+
 
 class SingleToneSweeper:
-	sampleCnt = 5000
-	radio = None
-	rxStream = None
 	sampleRate = None
 	bandWidth = None
 	aborted = False
 	events = None
 
-	def __init__(self, radio, sampleRate, rxGain, txGain, events):
-		self.radio = radio
-		self.events = events
+	def __init__(self, sampleRate, rxGain, txGain, events):
 
-		self.radio.tddMode = True
-		self.radio.testSignalDC(0x3fff, 0x3fff)
-		self.setGain(rxGain, txGain)
-		self.rxStream = self.radio.sdr.setupStream(SOAPY_SDR_RX, SOAPY_SDR_CF32, [0], {"bufferLength": str(self.sampleCnt*10)})
+		self.events = events
+		args = dict(driver="plutosdr")
+		self.rxGain = 60
 		self.setSampleRate(sampleRate)
+		self.pwr = 0
 
 	def setSampleRate(self, sampleRate):
 		sampleRate = float(sampleRate)
@@ -28,79 +26,93 @@ class SingleToneSweeper:
 		if (self.sampleRate==sampleRate):
 			return
 
-		if (self.sampleRate is not None):
-			self.radio.sdr.deactivateStream(self.rxStream)
-
-		self.radio.txNCOFreq = 0
-		self.radio.cgenFrequency = sampleRate * 8
-		self.radio.rxBandwidth = int(sampleRate * 1.5)
-		self.radio.txBandwidth = int(sampleRate * 1.5)
-		self.radio.rxSampleRate = sampleRate
-		self.radio.txSampleRate = sampleRate
-
 		self.sampleRate = sampleRate
 		self.bandWidth = sampleRate
 
-		self.radio.sdr.activateStream(self.rxStream)
-
-	def setGain(self, rxGain, txGain):
-		self.radio.rxGain = rxGain #-12, 61
-		self.radio.txGain = txGain #-12, 64
 
 	def abortSweep(self):
 		self.aborted = True
 
-	def sweep(self, snaStartFreq, snaEndFreq, snaNumSteps):
+	def sweep(self, snaStartFreq, snaEndFreq, snaNumSteps, snarxGain, snatxGain):
 		self.aborted = False
-
 		numSteps = int(math.ceil(snaNumSteps / 2))
 		txNCOStep = int(round(self.bandWidth / 2 / numSteps))
 		txNCOOffset = int(round(txNCOStep / 2))
 		txRfFreq = snaStartFreq + txNCOStep*numSteps - txNCOOffset
-
+		self.snarxGain = snarxGain
+		self.snatxGain = snatxGain
 		self.events.sweepStart(snaStartFreq, txNCOStep, math.floor((snaEndFreq-snaStartFreq) / txNCOStep) + 1)
-
+		print("RXgain :", snarxGain, " -- TXgain :", snatxGain)
+		self.plutotx_init(snatxGain)
 		n = 0
 		brk = False
 		while (True):
-			self.radio.txRfFreq = txRfFreq
-			self.radio.configureAntenna(txRfFreq)
+
+
 
 			for i in range(-1*numSteps, numSteps):
-				print(".", end="")
+
 				txNCOFreq = txNCOOffset + txNCOStep*i
-				self.radio.txNCOFreq = txNCOFreq
+				freq = int(txRfFreq + txNCOFreq)
+				self.freq = int(freq)
+#				print(freq)
 
-				targetTime = int(self.radio.sdr.getHardwareTime() + 1e6)
-				buff = self.readSamples(self.sampleCnt, targetTime)
 
-				spect = np.fft.fft(buff)
-				spect = np.fft.fftshift(spect)
-				fftIndex = int(round(((txNCOFreq + self.sampleRate / 2) / self.sampleRate) * self.sampleCnt))
-				pwr = 20*np.log10(np.abs(spect[fftIndex]) / self.sampleCnt / 2)
-
-				self.events.sweepResult(n, pwr)
+#
+#		RX : get signal level	
+#
+				self.plutotx(freq)
+				self.pwr = self.plutopower(freq)
+				print(n+1, freq, self.pwr)
+				self.events.sweepResult(n, float(self.pwr))
 
 				if ((txRfFreq + txNCOFreq >= snaEndFreq) or (self.aborted)):
 					brk = True
+					print("sweep end or stop")
+					time.sleep(0.5)
 					break
 
 				n += 1
 
-			print(" ")
 
 			if (brk):
 				break
 
 			txRfFreq += self.bandWidth
+		print("plutotx stop")
+		# Pluto : stop bist mode
+		os.system("/usr/bin/iio_attr -u ip:pluto.local -D  9361-phy bist_tone \"0 0 0 0\" 2>/dev/null\n")
 
-	def readSamples(self, nSamples, targetTimeNs):
-		buff = np.zeros(nSamples, np.complex64)
-		numElemsRequest = nSamples
+			
+	def plutopower(self, freq):
 
-		while numElemsRequest > 0:
-			sr = self.radio.sdr.readStream(self.rxStream, [buff], nSamples)
-			if (sr.timeNs>=targetTimeNs):
-				numElemsRequest -= sr.ret
+		cmd = "./pow -l %s -g %s -f %s" %(freq, self.snarxGain, int(self.sampleRate/1000000))
+#		print(cmd)
+		pow = os.popen(cmd).read()
+#		test : pow = os.popen('./pow -l 430600000 -g 40 -f 3').read()
 
-		return buff
+		level = pow.split()
+#		print(level)
+		self.pwr = repr(float(level[1]))
+#		print(self.pwr)
+#   	print repr(level[0]), repr(float(level[1]))
+		return self.pwr
+
+	def plutotx_init(self, snatxGain):
+		print("plutotx_init")
+		setpower = "/usr/bin/iio_attr -a -q -c -o ad9361-phy voltage0 hardwaregain %s 1>/dev/null\n" % snatxGain
+		os.system(setpower)
+
+		os.system("/usr/bin/iio_attr -a -q -c -o ad9361-phy voltage0 sampling_frequency 1600000 1>/dev/null\n")
+		os.system("/usr/bin/iio_attr -a -q -D ad9361-phy bist_prbs 0 1>/dev/null\n")
+		os.system("/usr/bin/iio_attr -a -q -D ad9361-phy bist_tone \"1 1 0 0\" 1>/dev/null\n")
+
+	def plutotx(self, freq):
+		freqTX = freq - 100000
+#		print("plutoTX  -->", freqTX)
+		cmd = "/usr/bin/iio_attr -u ip:pluto.local -q -c ad9361-phy TX_LO frequency %s 1>/dev/null\n" % freqTX
+#		print(cmd)
+		os.system(cmd)
+		time.sleep(0.2)
+
+			

@@ -1,13 +1,27 @@
 from __future__ import print_function
 import time
 import threading
-from pyLMS7002Soapy import *
 from flask import Flask, request
 from flask_socketio import SocketIO
 import webbrowser
+import signal
+import sys
 
 from SingleToneSweeper import SingleToneSweeper
-#from MultiToneSweeper import MultiToneSweeper
+
+class SIGINT_handler():
+    def __init__(self):
+        self.SIGINT = False
+
+    def signal_handler(self, signal, frame):
+        print('\nYou pressed Ctrl+C - please wait...\n\n')
+        self.SIGINT = True
+        sys.exit(2)
+
+
+handler = SIGINT_handler()
+signal.signal(signal.SIGINT, handler.signal_handler)
+
 
 class SNA:
     RUN_MODE_OFF = 0
@@ -19,10 +33,12 @@ class SNA:
 
     sweeper = None
     snaRunMode = RUN_MODE_OFF
-    snaSampleRate = 20e6
-    snaStartFreq = 400e6
-    snaEndFreq = 500e6
-    snaNumSteps = 40
+    snaSampleRate = 5e6
+    snaStartFreq = 100e6
+    snaEndFreq = 110e6
+    snaNumSteps = 5
+    snarxGain = 60
+    snatxGain = -10
 
     def __init__(self):
         app = Flask(__name__, static_url_path='/static')
@@ -42,7 +58,9 @@ class SNA:
                 'startFreq': self.snaStartFreq,
                 'endFreq': self.snaEndFreq,
                 'numSteps': self.snaNumSteps,
-                'runMode': self.snaRunMode
+                'runMode': self.snaRunMode,
+                'rxGain': self.snarxGain,
+                'txGain': self.snatxGain
             })
 
         @self.socketio.on('config')
@@ -52,11 +70,14 @@ class SNA:
             self.snaEndFreq = int(json['endFreq'])
             self.snaNumSteps = int(json['numSteps'])
             self.snaRunMode = int(json['runMode'])
+            self.snarxGain = int(json['rxGain'])
+            self.snatxGain = int(json['txGain'])
 
             if ((self.snaRunMode!=self.RUN_MODE_ON) and (self.sweeper is not None)):
                 self.sweeper.abortSweep()
 
         self.socketio.run(app, port=55555)
+
 
     def sweepStart(self, startFreq, freqStep, stepCnt):
         self.socketio.emit('sweepStart', {
@@ -72,11 +93,15 @@ class SNA:
         })
 
     def snaThread(self):
-        radio = pyLMS7002Soapy(0)
-        self.sweeper = SingleToneSweeper(radio, self.snaSampleRate, 20, 20, self)
+#args can be user defined or from the enumeration result
+#	args = dict(driver="plutosdr",uri="ip:pluto.local")
+
+        self.sweeper = SingleToneSweeper(self.snaSampleRate, 20, 20, self)
         webbrowser.open("http://127.0.0.1:55555", new=1)
 
         while True:
+            if handler.SIGINT:
+				break
             if (self.snaRunMode==self.RUN_MODE_OFF):
                 time.sleep(0.1)
                 continue
@@ -86,10 +111,11 @@ class SNA:
             start = time.time()
 
             self.sweeper.setSampleRate(self.snaSampleRate)
-            self.sweeper.sweep(self.snaStartFreq, self.snaEndFreq, self.snaNumSteps)
+            self.sweeper.sweep(self.snaStartFreq, self.snaEndFreq, self.snaNumSteps, self.snarxGain, self.snatxGain)
 
             end = time.time()
-            print(end - start)
+
+            print("sweep time : %4.2f sec." % (end - start))
 
 if __name__ == '__main__':
     SNA()
