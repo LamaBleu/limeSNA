@@ -5,15 +5,25 @@ Sweep time is not optimal and can be improved : approx. 1 hop/s
 
 Youtube : https://www.youtube.com/watch?v=yh-9a1fkgFA
 
-Dependencies
-- pow tool : https://github.com/LamaBleu/plutoscripts/tree/master/pluto_power  
-           : you will need to compile pow tool.
-- numpy (pip)
-- flask (pip)
-- flask_socketio (pip)
-- webbrowser (pip)
-- gevent (pip)
-- gevent-websocket (pip)
+Dependencies  
+
+- pow tool : you will need to compile pow tool.  
+  build pow tool :  
+           
+      gcc -std=gnu99 -g -o pow pow.c -liio -lm -Wall -Wextra
+      
+   Test : 
+      ./pow -l 430600000 -g 40 -f 3   
+ 
+   result : 430600000 2.49 95.75   
+   units  : freq (Hz), signal (dB), RSSI (dB)   
+            
+- numpy (pip)  
+- flask (pip)  
+- flask_socketio (pip)  
+- webbrowser (pip)  
+- gevent (pip)  
+- gevent-websocket (pip)  
 
 How to use:
 
