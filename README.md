@@ -24,7 +24,18 @@ Dependencies
 - flask_socketio (pip)  
 - webbrowser (pip)  
 - gevent (pip)  
-- gevent-websocket (pip)  
+- gevent-websocket (pip)
+- libiio
+
+Quick setup :  
+
+    cd ~  
+    git clone https://github.com/LamaBleu/limeSNA  
+    cd limeSNA  
+    git checkout plutosdr  
+    gcc -std=gnu99 -g -o pow pow.c -liio -lm -Wall -Wextra  
+
+
 
 How to use:
 
